@@ -6,44 +6,17 @@
 #include <vector>
 #include <cstdint>
 #include <bitset>
-
+#include <zlib.h>
 
 std::map<char, int> hexMap{
 	{'0', 0}, {'1', 1}, {'2', 2}, {'3', 3}, {'4', 4}, {'5', 5}, {'6', 6}, {'7', 7},
 	{'8', 8}, {'9', 9}, {'a', 10}, {'b', 11}, {'c', 12}, {'d', 13}, {'e', 14}, {'f', 15}
 };
 
-std::string base64chars {
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	"abcdefghijklmnopqrstuvwxyz"
-	"01234567890+/"
-};
 
-// assumes input of two chars in a string. example: "1a"
-std::string hexToBase64_old(const std::string& input) {
 
-	std::size_t hexPairSize = input.size() * 0.5;
-	std::string test{};
-	int totalDecimal{0};
-	for (std::size_t i{0}; i < input.size(); i+=2) {
-		char lhs{input[i]};   // left digit 16^1
-		char rhs{input[i+1]}; // right digit 16^0
-		totalDecimal += hexMap[rhs] + (hexMap[lhs] * 16); // convert to base 10
-		std::size_t index = hexMap[rhs] + (hexMap[lhs] * 16);
-		test += base64chars[index % 64];
-	}
 
-	std::cout << totalDecimal << '\n';
 
-	std::string result{};
-	while (totalDecimal > 0) {
-		size_t index = static_cast<size_t>(totalDecimal % 64); // convert total num to base 64 index
-		result += base64chars[index]; // place the indexed char
-		totalDecimal /= 64;
-	}
-
-	return test;
-}
 
 std::vector<std::uint8_t>
 	hexStringToByteArr(const std::string& input) {
@@ -94,17 +67,52 @@ std::string
 		return out;		
 	}
 
+std::string base64chars {
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" // 0-25
+	"abcdefghijklmnopqrstuvwxyz" // 26-51
+	"01234567890+/"              // 52-63
+};
+std::optional<std::uint8_t> base64Lookup(const char& c) {
+	if (c == '=') return nullptr;
+
+	return static_cast<std::uint8_t>(std::stoi(c, nullptr, 64));
+}
+
+
 int main(int argc, char** argv) {
 	
-	std::string start{"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"};
-	std::string outputToMatch{"SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"};
-	std::vector<std::uint8_t> arr;
-	arr = hexStringToByteArr(start);
-	std::vector<std::uint8_t> newarr = convertByteToBase64(arr);
-	
-	std::string out = byteArrToBase64(newarr);
-	std::cout << outputToMatch << '\n';
-	std::cout << out << std::endl;
+	//std::string start{"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"};
+	//std::string outputToMatch{"SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"};
+	//std::vector<std::uint8_t> arr;
+	//arr = hexStringToByteArr(start);
+	//std::vector<std::uint8_t> newarr = convertByteToBase64(arr);
+	//
+	//std::string out = byteArrToBase64(newarr);
+	//std::cout << outputToMatch << '\n';
+	//std::cout << out << std::endl;
+
+	std::string start{
+		"H4sIAAAAAAAACp2V223DMBAEqRbYAntKgkDAd1AbFhETiMZqUgH4QtkvfavVuO1to41hZWOqv7Hf7cd5xNsp3h58uusy+47zLneH3Oc+bWtutOtnPuQM2LT27l21po4MOxrvJoH7zLWlaEk0npuTS7rLOxKhzD3yRruUJ+u1fkg4Wn9c4Wz51lppr+eK4vWd+yV2tizjYHV3XP59qFy4kY5C9xy9prT1X7iftd9g1+iSVzNZW9H3cvHDPetR+ybPVjv7cXjjxnONmffDf9UAd5NfyNuxMs5PWprr+wm+Kb322fnfEZV417t07kGJbLnWxrsqv6b+9MaYnKZfqnzWaShSbPv3pWkD3WOTCPp9w7npNsTqgb7Dfqz93bQ7t176e95+lT4vLt4Btk2sV9ag5xqPEXDsTXNDFpGPG1vq7+VvwHYnGOWCtxZj8ZdsY9+U1vj30Td5t9Ypbmy3qZWJHX1G9Wh+kJ59DwN1wT1sYZ45rmMndqCLkhHpZnSPrS5uHhKNvs1BnZcpfkxHko6ZDfvC7s12rnWDjemG8ZbeBusPxn2tX8nPLc0QDgAA"
+	};
+
+	z_stream_s zss{};
+	zss.zalloc = Z_NULL;
+	zss.zfree = Z_NULL;
+	zss.opaque = Z_NULL;
+	int ret = deflateInit(&zss, Z_NULL);
+	for (std::size_t i{0}; i<start.size(); ++i) {
+		if (start[i] == '=') continue;
+
+		std::uint8_t byteVal = start[i];
+		if (!zss.avail_in) continue; // maybe?
+		else zss.next_in = &byteVal;
+
+		if (i+1 >= start.size() || start[i+1] == '=') zss.avail_in = 0;
+		else zss.avail_in = 1;
+
+
+	}
+
 
 	return 0;
 }
